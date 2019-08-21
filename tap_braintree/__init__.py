@@ -79,13 +79,13 @@ def sync_transactions():
     singer.write_schema("transactions", schema, ["id"],
                         bookmark_properties=['created_at'])
 
-    latest_updated_at = utils.strptime_to_utc(STATE.get('latest_updated_at', DEFAULT_TIMESTAMP))
-
-    run_maximum_updated_at = latest_updated_at
-
-    latest_disbursement_date = utils.strptime_to_utc(STATE.get('latest_disbursment_date', DEFAULT_TIMESTAMP))
-
-    run_maximum_disbursement_date = latest_disbursement_date
+    # latest_updated_at = utils.strptime_to_utc(STATE.get('latest_updated_at', DEFAULT_TIMESTAMP))
+    #
+    # run_maximum_updated_at = latest_updated_at
+    #
+    # latest_disbursement_date = utils.strptime_to_utc(STATE.get('latest_disbursment_date', DEFAULT_TIMESTAMP))
+    #
+    # run_maximum_disbursement_date = latest_disbursement_date
 
     latest_start_date = utils.strptime_to_utc(get_start("transactions"))
 
@@ -95,9 +95,9 @@ def sync_transactions():
 
     logger.info("transactions: Syncing from {}".format(period_start))
 
-    logger.info("transactions: latest_updated_at from {}, disbursement_date from {}".format(
-        latest_updated_at, latest_disbursement_date
-    ))
+    # logger.info("transactions: latest_updated_at from {}, disbursement_date from {}".format(
+    #     latest_updated_at, latest_disbursement_date
+    # ))
 
     logger.info("transactions: latest_start_date from {}".format(
         latest_start_date
@@ -117,7 +117,7 @@ def sync_transactions():
         ))
 
         row_written_count = 0
-        row_skipped_count = 0
+        #row_skipped_count = 0
 
         for row in data:
             # Ensure updated_at consistency
@@ -126,20 +126,22 @@ def sync_transactions():
 
             transformed = transform_row(row, schema)
             updated_at = to_utc(row.updated_at)
-
+            singer.write_record("transactions", transformed,
+                                    time_extracted=time_extracted)
+            row_written_count += 1
             # if disbursement is successful, get disbursement date
             # set disbursement datetime to min if not found
-
-            if row.disbursement_details is None:
-                disbursement_date = datetime.min
-
-            else:
-                if row.disbursement_details.disbursement_date is None:
-                    row.disbursement_details.disbursement_date = datetime.min
-
-                disbursement_date = to_utc(datetime.combine(
-                    row.disbursement_details.disbursement_date,
-                    datetime.min.time()))
+            #
+            # if row.disbursement_details is None:
+            #     disbursement_date = datetime.min
+            #
+            # else:
+            #     if row.disbursement_details.disbursement_date is None:
+            #         row.disbursement_details.disbursement_date = datetime.min
+            #
+            #     disbursement_date = to_utc(datetime.combine(
+            #         row.disbursement_details.disbursement_date,
+            #         datetime.min.time()))
 
             # Is this more recent than our past stored value of update_at?
             # Is this more recent than our past stored value of disbursement_date?
@@ -148,51 +150,51 @@ def sync_transactions():
             # at the same time
             # Update our high water mark for updated_at and disbursement_date
             # in this run
-            if (
-                updated_at >= latest_updated_at
-            ) or (
-                disbursement_date >= latest_disbursement_date
-            ):
-
-                if updated_at > run_maximum_updated_at:
-                    run_maximum_updated_at = updated_at
-
-                if disbursement_date > run_maximum_disbursement_date:
-                    run_maximum_disbursement_date = disbursement_date
-
-                singer.write_record("transactions", transformed,
-                                    time_extracted=time_extracted)
-                row_written_count += 1
-
-            else:
-
-                row_skipped_count += 1
+            # if (
+            #     updated_at >= latest_updated_at
+            # ) or (
+            #     disbursement_date >= latest_disbursement_date
+            # ):
+            #
+            #     if updated_at > run_maximum_updated_at:
+            #         run_maximum_updated_at = updated_at
+            #
+            #     if disbursement_date > run_maximum_disbursement_date:
+            #         run_maximum_disbursement_date = disbursement_date
+            #
+            #     singer.write_record("transactions", transformed,
+            #                         time_extracted=time_extracted)
+            #     row_written_count += 1
+            #
+            # else:
+            #
+            #     row_skipped_count += 1
 
         logger.info("transactions: Written {} records from {} - {}".format(
             row_written_count, start, end
         ))
 
-        logger.info("transactions: Skipped {} records from {} - {}".format(
-            row_skipped_count, start, end
-        ))
+        # logger.info("transactions: Skipped {} records from {} - {}".format(
+        #     row_skipped_count, start, end
+        # ))
 
     # End day loop
-    logger.info("transactions: Complete. Last updated record: {}".format(
-        run_maximum_updated_at
-    ))
+    # logger.info("transactions: Complete. Last updated record: {}".format(
+    #     run_maximum_updated_at
+    # ))
 
-    logger.info("transactions: Complete. Last disbursement date: {}".format(
-        run_maximum_disbursement_date
-    ))
-
-    latest_updated_at = run_maximum_updated_at
-
-    latest_disbursement_date = run_maximum_disbursement_date
-
-    STATE['latest_updated_at'] = utils.strftime(latest_updated_at)
-
-    STATE['latest_disbursement_date'] = utils.strftime(
-        latest_disbursement_date)
+    # logger.info("transactions: Complete. Last disbursement date: {}".format(
+    #     run_maximum_disbursement_date
+    # ))
+    #
+    # latest_updated_at = run_maximum_updated_at
+    #
+    # latest_disbursement_date = run_maximum_disbursement_date
+    #
+    # STATE['latest_updated_at'] = utils.strftime(latest_updated_at)
+    #
+    # STATE['latest_disbursement_date'] = utils.strftime(
+    #     latest_disbursement_date)
 
     utils.update_state(STATE, "transactions", utils.strftime(end))
 
